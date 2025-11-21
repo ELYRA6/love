@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>给宝宝的小爱心</title>
+<style>
+    html,body{margin:0;height:100%;background:#ffeef5;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+    .heart{width:100px;height:90px;position:relative;animation: beat 1.2s infinite;}
+    .heart::before,.heart::after{content:'';display:block;width:52px;height:80px;background:#ff4777;border-radius:50px 50px 0 0;position:absolute;top:0;transform-origin:0 100%;}
+    .heart::before{left:50px;transform:rotate(-45deg);transform-origin:0 100%;}
+    .heart::after{left:0;transform:rotate(45deg);transform-origin:100% 100%;}
+    @keyframes beat{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
+    .text{margin-top:30px;font-size:24px;color:#ff4777;white-space:nowrap;overflow:hidden;border-right:2px solid #ff4777;width:7em;animation: typing 2s steps(7,end) infinite;}
+    @keyframes typing{0%{width:0;}50%{width:7em;}100%{width:7em;}}
+</style>
+</head>
+<body>
+    <div class="heart"></div>
+    <div class="text">宝宝我想你了</div>
+</body>
+</html>

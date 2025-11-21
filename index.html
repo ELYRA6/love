@@ -1,21 +1,278 @@
+// ...existing code...
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>给宝宝的小爱心</title>
 <style>
-    html,body{margin:0;height:100%;background:#ffeef5;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
-    .heart{width:100px;height:90px;position:relative;animation: beat 1.2s infinite;}
-    .heart::before,.heart::after{content:'';display:block;width:52px;height:80px;background:#ff4777;border-radius:50px 50px 0 0;position:absolute;top:0;transform-origin:0 100%;}
-    .heart::before{left:50px;transform:rotate(-45deg);transform-origin:0 100%;}
-    .heart::after{left:0;transform:rotate(45deg);transform-origin:100% 100%;}
-    @keyframes beat{0%,100%{transform:scale(1);}50%{transform:scale(1.25);}}
-    .text{margin-top:30px;font-size:24px;color:#ff4777;white-space:nowrap;overflow:hidden;border-right:2px solid #ff4777;width:7em;animation: typing 2s steps(7,end) infinite;}
-    @keyframes typing{0%{width:0;}50%{width:7em;}100%{width:7em;}}
+  :root{
+    --bg1:#fff0f6;
+    --bg2:#ffeafa;
+    --accent1:#ff6fa3;
+    --accent2:#ff2e6d;
+    --accent3:#ff9bb3;
+    --glow: rgba(255,82,130,0.25);
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* 背景：动感渐变 + 轻微浮动 */
+  .stage{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background: radial-gradient(circle at 20% 20%, rgba(255,230,240,0.6), transparent 15%),
+                radial-gradient(circle at 80% 80%, rgba(255,245,220,0.6), transparent 12%),
+                linear-gradient(135deg, var(--bg1), var(--bg2));
+    overflow:hidden;
+    position:relative;
+    animation: bgShift 8s ease-in-out infinite;
+  }
+  @keyframes bgShift{
+    0%{filter: hue-rotate(0deg) saturate(1);}
+    50%{filter: hue-rotate(8deg) saturate(1.05);}
+    100%{filter: hue-rotate(0deg) saturate(1);}
+  }
+
+  /* 主心形：使用伪元素构造，添加渐变、发光、投影和跳动 */
+  .heart-wrap{
+    position:relative;
+    width:240px;
+    height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transform-origin:center;
+  }
+
+  .heart{
+    width:140px;
+    height:120px;
+    position:relative;
+    transform: rotate(45deg);
+    border-radius:20px 20px 0 0;
+    background: linear-gradient(180deg, var(--accent1), var(--accent2));
+    box-shadow: 0 10px 30px rgba(232, 139, 186, 0.081), 0 0 60px var(--glow);
+    animation: heartBeat 1s infinite ease-in-out;
+    filter: drop-shadow(0 8px 20px rgba(255,100,140,0.18));
+  }
+
+  .heart::before,
+  .heart::after{
+    content:"";
+    position:absolute;
+    width:140px;
+    height:120px;
+    background: linear-gradient(180deg, var(--accent1), var(--accent2));
+    border-radius:50%;
+    left:0;
+    top:-60px;
+    transform-origin:center;
+    box-shadow:0 8px 30px rgba(255,60,120,0.12);
+  }
+  .heart::after{
+    left:-60px;
+    top:0;
+  }
+
+  /* 额外的发光层，让心形更有层次感 */
+  .heart-glow{
+    position:absolute;
+    width:220px;
+    height:220px;
+    border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,90,140,0.18), transparent 25%),
+                radial-gradient(circle at 70% 70%, rgba(255,150,190,0.12), transparent 20%);
+    filter: blur(14px);
+    z-index:-1;
+    animation: glowPulse 1.6s infinite ease-in-out;
+  }
+
+  @keyframes heartBeat{
+    0%,100%{ transform: rotate(45deg) scale(1); }
+    50%{ transform: rotate(45deg) scale(1.12); }
+  }
+  @keyframes glowPulse{
+    0%,100%{ transform: scale(1); opacity:0.95;}
+    50%{ transform: scale(1.08); opacity:1;}
+  }
+
+  /* 中心小心形闪烁（填色渐变移动） */
+  .heart-sheen{
+    position:absolute;
+    width:80px;height:70px;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%) rotate(45deg);
+    background: linear-gradient(120deg, rgba(255,255,255,0.4), rgba(255,255,255,0.06));
+    border-radius:12px 12px 0 0;
+    filter: blur(6px);
+    mix-blend-mode:screen;
+    animation: sheenMove 2.6s infinite linear;
+    pointer-events:none;
+  }
+  @keyframes sheenMove{
+    0%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
+    50%{ transform:translate(-40%,-45%) rotate(45deg); opacity:1; }
+    100%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
+  }
+
+  /* 漂浮小爱心：由 JS 生成并上升消失 */
+  .float-heart{
+    position:absolute;
+    width:18px;height:18px;
+    transform: rotate(45deg);
+    background: linear-gradient(180deg, var(--accent3), var(--accent2));
+    border-radius:4px 4px 0 0;
+    opacity:0.95;
+    pointer-events:none;
+    box-shadow:0 6px 12px rgba(255,80,140,0.18);
+  }
+  .float-heart::before, .float-heart::after{
+    content:"";
+    position:absolute;
+    width:18px;height:18px;
+    background:inherit;
+    border-radius:50%;
+    top:-9px; left:0;
+  }
+  .float-heart::after{ left:-9px; top:0; }
+
+/* 替换原来的 .text 规则为下面内容 */
+.text{
+    position:relative;             /* 便于放置伪元素作为底板 */
+    margin-top:26px;
+    font-size:20px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    box-sizing:content-box;
+
+    /* 文字渐变，保留原有样式 */
+    background: linear-gradient(90deg, #fff7ff, #ffd6e6 40%, #fff 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+
+    /* 保持打字效果（宽度按字符数调节）*/
+    width:10.5ch;
+    border-right: 2px solid rgba(255,255,255,0.7);
+    animation: typing 2.4s steps(11,end) 1, blink 1s step-end infinite;
+
+    z-index:1;                     /* 保证文字在伪元素上层 */
+    padding:8px 18px;              /* 为底板留出空间 */
+    border-radius:12px;
+    text-shadow: 0 6px 18px rgba(0,0,0,0.22); /* 加强可读性 */
+}
+
+/* 底板：半透明 + 毛玻璃模糊，增强与背景的对比 */
+.text::before{
+    content:'';
+    position:absolute;
+    left:0;
+    top:50%;
+    transform:translateY(-50%);
+    width:100%;
+    height:100%;
+    background: rgba(237, 46, 122, 0.18); /* 深色半透明，可调节透明度 */
+    border-radius:12px;
+    z-index:-1;
+    backdrop-filter: blur(6px); /* 毛玻璃效果（移动端现代浏览器支持）*/
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 8px 20px #f65a9814;
+}s
+
+/* 小屏适配（必要时减小内边距与宽度） */
+@media (max-width:420px){
+    .text{ font-size:18px; width:9ch; padding:6px 12px; border-radius:10px; }
+    .text::before{ border-radius:10px; }
+}
 </style>
 </head>
 <body>
-    <div class="heart"></div>
-    <div class="text">宝宝我想你了</div>
+  <div class="stage">
+    <div class="heart-wrap" aria-hidden="true">
+      <div class="heart-glow"></div>
+      <div class="heart"></div>
+      <div class="heart-sheen"></div>
+    </div>
+
+    <div class="text">宝宝，我想你了 ❤</div>
+
+    <div class="footer-note">我每时每刻都在想我的宝宝哦 ~</div>
+  </div>
+
+<script>
+  /* 生成漂浮小爱心粒子（自动清理，节流控制） */
+  (function(){
+    const stage = document.querySelector('.stage');
+    let max = 22;
+    let running = true;
+
+    function rand(min,max){ return Math.random()*(max-min)+min; }
+
+    function createHeart(){
+      if(!running) return;
+      const h = document.createElement('div');
+      h.className = 'float-heart';
+      const size = Math.floor(rand(10,26));
+      h.style.width = size + 'px';
+      h.style.height = size + 'px';
+      h.style.left = (50 + rand(-40,40)) + '%';
+      h.style.bottom = '-10px';
+      const hueShift = Math.floor(rand(-10,10));
+      // subtle color variation via CSS filter
+      h.style.filter = `hue-rotate(${hueShift}deg) saturate(${rand(0.9,1.15)})`;
+      stage.appendChild(h);
+
+      // animation using JS: move up, drift, fade, rotate
+      const duration = rand(3800,7000);
+      const start = performance.now();
+      function animate(now){
+        const t = (now - start) / duration;
+        if(t >= 1){
+          h.remove();
+          return;
+        }
+        // vertical movement
+        const y = t * 120; // percent of viewport
+        // horizontal drift
+        const drift = Math.sin(t * Math.PI * rand(0.8,1.8)) * 18;
+        h.style.transform = `translate(${drift}px, -${y}vh) rotate(${t*360}deg)`;
+        h.style.opacity = String(1 - t*0.95);
+        requestAnimationFrame(animate);
+      }
+      requestAnimationFrame(animate);
+
+      // limit total nodes
+      if(stage.querySelectorAll('.float-heart').length < max){
+        setTimeout(createHeart, Math.floor(rand(350,900)));
+      } else {
+        setTimeout(() => { if(running) setTimeout(createHeart, 900); }, 300);
+      }
+    }
+
+    // start a few hearts
+    for(let i=0;i<7;i++){ setTimeout(createHeart, i*220); }
+
+    // continue producing
+    let interval = setInterval(() => {
+      if(stage.querySelectorAll('.float-heart').length < max) createHeart();
+    }, 850);
+
+    // pause particles when page hidden
+    document.addEventListener('visibilitychange', () => {
+      running = !document.hidden;
+    });
+
+  })();
+</script>
 </body>
 </html>

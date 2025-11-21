@@ -1,4 +1,3 @@
-// ...existing code...
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -59,50 +58,104 @@
     position:relative;
     transform: rotate(45deg);
     border-radius:20px 20px 0 0;
-    background: linear-gradient(180deg, var(--accent1), var(--accent2));
-    box-shadow: 0 10px 30px rgba(232, 139, 186, 0.081), 0 0 60px var(--glow);
-    animation: heartBeat 1s infinite ease-in-out;
-    filter: drop-shadow(0 8px 20px rgba(255,100,140,0.18));
+    background: linear-gradient(180deg, #ff90b0 0%, #ff3a73 60%, #ff2e6d 100%);
+    box-shadow: 0 12px 36px rgba(255,60,120,0.12), 0 0 80px rgba(255,82,130,0.14);
+    animation: heartBeat 1.6s ease-in-out infinite, gentleSway 6s ease-in-out infinite;
+    filter: drop-shadow(0 10px 30px rgba(255,100,140,0.12));
   }
 
+  /* 保留两个圆瓣（lobe），做更柔和的过渡 */
   .heart::before,
   .heart::after{
     content:"";
     position:absolute;
     width:140px;
     height:120px;
-    background: linear-gradient(180deg, var(--accent1), var(--accent2));
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.00)),
+                linear-gradient(180deg, #ff90b0 0%, #ff3a73 60%);
     border-radius:50%;
     left:0;
     top:-60px;
     transform-origin:center;
-    box-shadow:0 8px 30px rgba(255,60,120,0.12);
+    opacity:0.98;
+    filter: blur(0.6px);
   }
   .heart::after{
     left:-60px;
     top:0;
   }
 
-  /* 额外的发光层，让心形更有层次感 */
+  /* 缓慢放大的发光层（稍微放慢节奏）*/
   .heart-glow{
     position:absolute;
-    width:220px;
-    height:220px;
+    width:240px;
+    height:240px;
     border-radius:50%;
-    background: radial-gradient(circle at 30% 30%, rgba(255,90,140,0.18), transparent 25%),
-                radial-gradient(circle at 70% 70%, rgba(255,150,190,0.12), transparent 20%);
-    filter: blur(14px);
-    z-index:-1;
-    animation: glowPulse 1.6s infinite ease-in-out;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,110,160,0.18), transparent 22%),
+      radial-gradient(circle at 70% 70%, rgba(255,150,190,0.10), transparent 18%);
+    filter: blur(18px);
+    z-index:-2;
+    animation: glowPulse 3.2s ease-in-out infinite;
   }
 
+  /* 光泽移动更慢更悠扬 */
+  .heart-sheen{
+    position:absolute;
+    width:96px;height:84px;
+    left:50%;top:50%;
+    transform:translate(-50%,-50%) rotate(45deg);
+    background: linear-gradient(120deg, rgba(255,255,255,0.45), rgba(255,255,255,0.06));
+    border-radius:14px 14px 0 0;
+    filter: blur(6px);
+    mix-blend-mode:screen;
+    animation: sheenMove 4.2s infinite linear;
+    pointer-events:none;
+  }
+
+  /* 新增：心形叠层，增加柔和光斑与微旋转，增加浪漫感 */
+  .heart-overlay{
+    position:absolute;
+    width:260px;
+    height:260px;
+    left:50%; top:50%;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    background:
+      radial-gradient(circle at 30% 30%, rgba(255,220,238,0.28), transparent 18%),
+      radial-gradient(circle at 70% 70%, rgba(255,240,245,0.22), transparent 20%);
+    mix-blend-mode: soft-light;
+    pointer-events:none;
+    z-index:-1;
+    filter: blur(8px);
+    animation: overlayPulse 5.6s ease-in-out infinite;
+  }
+
+  /* 动画 keyframes（替换/新增） */
   @keyframes heartBeat{
-    0%,100%{ transform: rotate(45deg) scale(1); }
-    50%{ transform: rotate(45deg) scale(1.12); }
+    0%,100%{ transform: rotate(45deg) scale(1) translateY(0); }
+    50%{ transform: rotate(45deg) scale(1.12) translateY(-6px); }
+  }
+  @keyframes gentleSway{
+    0%{ transform: rotate(44.6deg) translateY(0); }
+    25%{ transform: rotate(45.4deg) translateY(-2px); }
+    50%{ transform: rotate(45deg) translateY(0); }
+    75%{ transform: rotate(45.6deg) translateY(-2px); }
+    100%{ transform: rotate(44.6deg) translateY(0); }
   }
   @keyframes glowPulse{
-    0%,100%{ transform: scale(1); opacity:0.95;}
-    50%{ transform: scale(1.08); opacity:1;}
+    0%,100%{ transform: scale(1); opacity:0.9; }
+    50%{ transform: scale(1.14); opacity:1; }
+  }
+  @keyframes sheenMove{
+    0%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
+    50%{ transform:translate(-38%,-44%) rotate(45deg); opacity:1; }
+    100%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
+  }
+  @keyframes overlayPulse{
+    0%{ transform: translate(-50%,-50%) scale(0.98) rotate(-2deg); opacity:0.9; }
+    50%{ transform: translate(-50%,-52%) scale(1.03) rotate(2deg); opacity:1; }
+    100%{ transform: translate(-50%,-50%) scale(0.98) rotate(-2deg); opacity:0.9; }
   }
 
   /* 中心小心形闪烁（填色渐变移动） */
@@ -119,9 +172,9 @@
     pointer-events:none;
   }
   @keyframes sheenMove{
-    0%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
-    50%{ transform:translate(-40%,-45%) rotate(45deg); opacity:1; }
-    100%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
+    0%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
+    50%{ transform:translate(-38%,-44%) rotate(45deg); opacity:1; }
+    100%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
   }
 
   /* 漂浮小爱心：由 JS 生成并上升消失 */
@@ -198,10 +251,12 @@
 </head>
 <body>
   <div class="stage">
+    <!-- 替换原来 <div class="heart-wrap"> ... </div> 为下面内容 -->
     <div class="heart-wrap" aria-hidden="true">
       <div class="heart-glow"></div>
       <div class="heart"></div>
       <div class="heart-sheen"></div>
+      <div class="heart-overlay" aria-hidden="true"></div> <!-- 新增：柔和叠层与光斑 -->
     </div>
 
     <div class="text">宝宝，我想你了 ❤</div>
@@ -209,37 +264,6 @@
     <div class="footer-note">我每时每刻都在想我的宝宝哦 ~</div>
   </div>
 
-// ...existing code...
-  @keyframes heartBeat{
--    0%,100%{ transform: rotate(45deg) scale(1); }
--    50%{ transform: rotate(45deg) scale(1.12); }
-+    /* 更柔和的心跳：同时有轻微上下浮动 */
-+    0%,100%{ transform: rotate(45deg) scale(1) translateY(0); }
-+    50%{ transform: rotate(45deg) scale(1.12) translateY(-6px); }
-   }
--  @keyframes glowPulse{
--    0%,100%{ transform: scale(1); opacity:0.95;}
--    50%{ transform: scale(1.08); opacity:1;}
--  }
-+  /* 把发光的节奏放慢一些，更浪漫 */
-+  @keyframes glowPulse{
-+    0%,100%{ transform: scale(1); opacity:0.92;}
-+    50%{ transform: scale(1.12); opacity:1;}
-+  }
-...
--  @keyframes sheenMove{
--    0%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
--    50%{ transform:translate(-40%,-45%) rotate(45deg); opacity:1; }
--    100%{ transform:translate(-60%,-55%) rotate(45deg); opacity:0.8; }
--  }
-+  /* 光泽滑动放慢，营造柔和流动感 */
-+  @keyframes sheenMove{
-+    0%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
-+    50%{ transform:translate(-38%,-44%) rotate(45deg); opacity:1; }
-+    100%{ transform:translate(-62%,-56%) rotate(45deg); opacity:0.78; }
-+  }
-...
-// ...existing code...
   <script>
   /* 生成漂浮小爱心粒子（自动清理，节流控制） */
   (function(){
@@ -332,7 +356,5 @@
 
   })();
   </script>
-</body>
-</html>
 </body>
 </html>

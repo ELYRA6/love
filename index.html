@@ -265,96 +265,106 @@
   </div>
 
   <script>
-  /* 生成漂浮小爱心粒子（自动清理，节流控制） */
-  (function(){
-    const stage = document.querySelector('.stage');
-    let max = 22;
-    let running = true;
+/* 粒子：漂浮小爱心 + 缓慢飘动的小星星/小爱心（围绕大心） */
+(function(){
+  const stage = document.querySelector('.stage');
+  const heartWrap = document.querySelector('.heart-wrap');
+  let max = 22;
+  let running = true;
 
-    function rand(min,max){ return Math.random()*(max-min)+min; }
+  function rand(min,max){ return Math.random()*(max-min)+min; }
 
-    function createHeart(){
-      if(!running) return;
-      const h = document.createElement('div');
-      h.className = 'float-heart';
--      const size = Math.floor(rand(10,26));
--      h.style.width = size + 'px';
--      h.style.height = size + 'px';
--      h.style.left = (50 + rand(-40,40)) + '%';
--      h.style.bottom = '-10px';
--      const hueShift = Math.floor(rand(-10,10));
--      // subtle color variation via CSS filter
--      h.style.filter = `hue-rotate(${hueShift}deg) saturate(${rand(0.9,1.15)})`;
-+      // 稍微放大粒子尺寸范围，水平分布收窄，使上升更优雅
-+      const size = Math.floor(rand(12,30));
-+      h.style.width = size + 'px';
-+      h.style.height = size + 'px';
-+      h.style.left = (50 + rand(-30,30)) + '%';
-+      h.style.bottom = '-10px';
-+      const hueShift = Math.floor(rand(-8,8));
-+      // 颜色和饱和度微调
-+      h.style.filter = `hue-rotate(${hueShift}deg) saturate(${rand(0.95,1.08)})`;
-      stage.appendChild(h);
+  /* 原始漂浮小爱心（上升）——保持之前实现，节奏略放慢 */
+  function createFloatHeart(){
+    if(!running) return;
+    const h = document.createElement('div');
+    h.className = 'float-heart';
+    const size = Math.floor(rand(12,30));
+    h.style.width = size + 'px';
+    h.style.height = size + 'px';
+    h.style.left = (50 + rand(-30,30)) + '%';
+    h.style.bottom = '-10px';
+    const hueShift = Math.floor(rand(-8,8));
+    h.style.filter = `hue-rotate(${hueShift}deg) saturate(${rand(0.95,1.08)})`;
+    stage.appendChild(h);
 
-      // animation using JS: move up, drift, fade, rotate
--      const duration = rand(3800,7000);
-+      // 延长上升持续时间，减慢抖动和旋转速度，更柔和
-+      const duration = rand(5200,11000);
-      const start = performance.now();
-      function animate(now){
-        const t = (now - start) / duration;
-        if(t >= 1){
-          h.remove();
-          return;
-        }
-        // vertical movement
--        const y = t * 120; // percent of viewport
--        // horizontal drift
--        const drift = Math.sin(t * Math.PI * rand(0.8,1.8)) * 18;
--        h.style.transform = `translate(${drift}px, -${y}vh) rotate(${t*360}deg)`;
--        h.style.opacity = String(1 - t*0.95);
-+        const y = t * 120; // percent of viewport
-+        // 缩小横向漂移幅度，旋转减慢
-+        const drift = Math.sin(t * Math.PI * rand(0.9,1.3)) * 10;
-+        const rot = t * 180; // 旋转速度减半
-+        h.style.transform = `translate(${drift}px, -${y}vh) rotate(${rot}deg)`;
-+        h.style.opacity = String(1 - t*0.9);
-        requestAnimationFrame(animate);
-      }
+    const duration = rand(5200,11000);
+    const start = performance.now();
+    function animate(now){
+      const t = (now - start) / duration;
+      if(t >= 1){ h.remove(); return; }
+      const y = t * 120;
+      const drift = Math.sin(t * Math.PI * rand(0.9,1.3)) * 10;
+      const rot = t * 180;
+      h.style.transform = `translate(${drift}px, -${y}vh) rotate(${rot}deg)`;
+      h.style.opacity = String(1 - t*0.9);
       requestAnimationFrame(animate);
-
-      // limit total nodes
--      if(stage.querySelectorAll('.float-heart').length < max){
--        setTimeout(createHeart, Math.floor(rand(350,900)));
--      } else {
--        setTimeout(() => { if(running) setTimeout(createHeart, 900); }, 300);
--      }
-+      if(stage.querySelectorAll('.float-heart').length < max){
-+        // 放慢新粒子的产生间隔，整体更悠扬
-+        setTimeout(createHeart, Math.floor(rand(700,1400)));
-+      } else {
-+        setTimeout(() => { if(running) setTimeout(createHeart, 1400); }, 600);
-+      }
     }
+    requestAnimationFrame(animate);
+  }
 
-    // start a few hearts
--    for(let i=0;i<7;i++){ setTimeout(createHeart, i*220); }
-+    for(let i=0;i<6;i++){ setTimeout(createHeart, i*380); }
+  /* 新增：在大心形周围缓慢漂浮的装饰（星星或迷你小心） */
+  function createDecoration(){
+    if(!running) return;
+    const rect = heartWrap.getBoundingClientRect();
+    const docRect = document.documentElement.getBoundingClientRect();
+    // 在 heartWrap 区域周边产生 — 基于 rect 随机偏移
+    const x = rect.left + rect.width/2 + rand(-rect.width*0.8, rect.width*0.8);
+    const y = rect.top + rect.height/2 + rand(-rect.height*0.6, rect.height*0.4);
 
-    // continue producing
--    let interval = setInterval(() => {
--      if(stage.querySelectorAll('.float-heart').length < max) createHeart();
--    }, 850);
-+    let interval = setInterval(() => {
-+      if(stage.querySelectorAll('.float-heart').length < max) createHeart();
-+    }, 1400);
+    const isStar = Math.random() < 0.55; // 星星概率稍大
+    const el = document.createElement('div');
+    if(isStar) el.className = 'tiny-star';
+    else el.className = 'mini-heart';
 
-    // pause particles when page hidden
-    document.addEventListener('visibilitychange', () => {
-      running = !document.hidden;
-    });
+    // 绝对定位到文档坐标
+    el.style.left = (x - docRect.left) + 'px';
+    el.style.top = (y - docRect.top) + 'px';
+    // 初始缩放与透明度
+    const scale = rand(0.8,1.2);
+    el.style.transform += ` scale(${scale})`;
+    stage.appendChild(el);
 
-  })();
+    // 动画：缓慢漂浮、微抖动、淡出并移除
+    const duration = rand(8000,15000); // 更慢
+    const start = performance.now();
+    const horAmp = rand(6,18); // 水平漂移幅度变小
+    const vert = rand(8,26); // 竖直总移动（px 的基础单位，配合 vh 会更自然）
+    const rotDir = (Math.random() < 0.5 ? -1 : 1) * rand(6,40);
+    function animate(now){
+      const t = (now - start) / duration;
+      if(t >= 1){ el.remove(); return; }
+      // 缓慢上浮或轻微环绕（使用 sin 做往返）
+      const dy = - (t * vert) - Math.sin(t * Math.PI * rand(0.8,1.6)) * (vert*0.2);
+      const dx = Math.sin(t * Math.PI * rand(0.7,1.3)) * horAmp;
+      const rotate = rotDir * t;
+      el.style.transform = `translate(${dx}px, ${dy}px) rotate(${rotate}deg) scale(${scale})`;
+      el.style.opacity = String(1 - t*0.98);
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  // 启动：初始产生若干、并周期性产生
+  for(let i=0;i<6;i++){ setTimeout(createFloatHeart, i*380); }
+  let floatInterval = setInterval(() => {
+    if(stage.querySelectorAll('.float-heart').length < max) createFloatHeart();
+  }, 1400);
+
+  // 装饰：星星与迷你心，生成更慢更温柔
+  for(let i=0;i<4;i++){ setTimeout(createDecoration, i*600); }
+  let decoInterval = setInterval(() => {
+    // 控制装饰总量，避免过多元素
+    const totalDeco = stage.querySelectorAll('.tiny-star, .mini-heart').length;
+    if(totalDeco < 24) createDecoration();
+  }, 1200);
+
+  // pause particles when page hidden
+  document.addEventListener('visibilitychange', () => {
+    running = !document.hidden;
+  });
+
+})();
   </script>
 </body>
 </html>

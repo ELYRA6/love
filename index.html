@@ -265,173 +265,154 @@
   </div>
 
   <script>
-/* Canvas 粒子心（闪烁 + 拖尾）实现
-   - 把大量粒子拉到心形轨迹并微抖动闪烁（glitter）
-   - 从心形底部定点发出若干拖尾粒子（流动触须效果）
-*/
 (function(){
   const canvas = document.getElementById('heartCanvas');
   const ctx = canvas.getContext('2d', { alpha: true });
-  let DPR = Math.max(1, window.devicePixelRatio || 1);
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  // 屏幕相关变量（先声明）
+  let center = { x: 0, y: 0 };
+  let scale = 1;
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.round(rect.width * DPR);
     canvas.height = Math.round(rect.height * DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    center = { x: rect.width/2, y: rect.height/2 - 10 };
-    scale = Math.min(rect.width, rect.height) / 38; // 38 from param scale
+    // 使用像素比设置变换，这样后续绘制都以 CSS 像素为单位
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    center = { x: rect.width / 2, y: rect.height / 2 - 10 };
+    scale = Math.min(rect.width, rect.height) / 38;
   }
   window.addEventListener('resize', resize);
   resize();
 
-  // 生成心形目标点（参数方程）
   function heartXY(t){
-    // param heart (classic): x=16 sin^3 t, y=13 cos t -5 cos 2t -2 cos3t - cos4t
     const x = 16 * Math.pow(Math.sin(t),3);
     const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
     return { x, y };
   }
 
-  // 粒子定义
-  const PARTICLE_COUNT = 900; // 可根据性能调节（手机可降到 600）
+  // 粒子（在 resize 之后初始化）
+  const PARTICLE_COUNT = 600; // 手机上建议 400-700 之间
   const particles = [];
-  let center = { x: canvas.width/ (2*DPR), y: canvas.height/(2*DPR) - 10 };
-  let scale = Math.min(canvas.width, canvas.height) / (38 * DPR);
+  const trails = [];
 
-  for(let i=0;i<PARTICLE_COUNT;i++){
-    const t = Math.random() * Math.PI * 2;
-    // 随机心形目标
-    const p = heartXY(t);
-    const tx = center.x + p.x * scale + (Math.random()-0.5)*8;
-    const ty = center.y - p.y * scale + (Math.random()-0.5)*8;
-    particles.push({
-      x: center.x + (Math.random()-0.5)*200, // start from around center
-      y: center.y + (Math.random()-0.5)*200,
-      tx, ty,
-      vx: 0, vy: 0,
-      size: Math.random()*1.6 + 0.6,
-      hue: 330 + Math.random()*20, // pink range
-      life: Math.random()*4000 + 2000,
-      flick: Math.random()*1200,
-      phase: Math.random()*Math.PI*2
-    });
+  function initParticles(){
+    particles.length = 0;
+    for(let i=0;i<PARTICLE_COUNT;i++){
+      const t = Math.random() * Math.PI * 2;
+      const p = heartXY(t);
+      const tx = center.x + p.x * scale + (Math.random()-0.5)*8;
+      const ty = center.y - p.y * scale + (Math.random()-0.5)*8;
+      particles.push({
+        x: center.x + (Math.random()-0.5)*200,
+        y: center.y + (Math.random()-0.5)*200,
+        tx, ty, vx:0, vy:0,
+        size: Math.random()*1.4 + 0.6,
+        hue: 330 + Math.random()*20,
+        flick: Math.random()*1200,
+        phase: Math.random()*Math.PI*2
+      });
+    }
   }
 
-  // 拖尾粒子池（从心底发出）
-  const trails = [];
+  // 拖尾发射
   function emitTrail(){
     const baseX = center.x;
-    const baseY = center.y + 36 * scale; // 底部位置
-    const count = 6 + Math.floor(Math.random()*6);
+    const baseY = center.y + 36 * scale;
+    const count = 4 + Math.floor(Math.random()*5);
     for(let i=0;i<count;i++){
       trails.push({
         x: baseX + (Math.random()-0.5)*18,
         y: baseY + (Math.random()*8),
-        vx: (Math.random()-0.5)*0.6,
-        vy: - (1.5 + Math.random()*2.2),
-        life: 1200 + Math.random()*1400,
-        size: 1.2 + Math.random()*2.6,
+        vx: (Math.random()-0.5)*0.5,
+        vy: - (1.2 + Math.random()*1.8),
+        life: 1000 + Math.random()*1200,
+        size: 1.0 + Math.random()*2.2,
         hue: 320 + Math.random()*40,
         t0: performance.now()
       });
     }
-    // cap trail count
-    if(trails.length > 500) trails.splice(0, trails.length-500);
+    if(trails.length > 400) trails.splice(0, trails.length-400);
   }
 
-  // 渲染循环
+  // 在 resize 后初始化并启动
+  initParticles();
+
+  // 渲染循环（改用清除整个像素画布）
   let last = performance.now();
   function tick(now){
     const dt = now - last;
     last = now;
-    // slight background clear with alpha to create glow trails
-    ctx.clearRect(0,0,canvas.width/DPR, canvas.height/DPR);
 
-    // draw glow radial for big heart
+    // 清除物理像素区（使用 canvas.width/height）
+    ctx.clearRect(0,0, canvas.width / DPR, canvas.height / DPR);
+
+    // 背景 glow
     const g = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(canvas.width, canvas.height));
-    g.addColorStop(0, 'rgba(255,110,160,0.22)');
-    g.addColorStop(0.4, 'rgba(255,140,180,0.08)');
+    g.addColorStop(0, 'rgba(255,110,160,0.18)');
+    g.addColorStop(0.4, 'rgba(255,140,180,0.06)');
     g.addColorStop(1, 'rgba(255,140,160,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(center.x, center.y, 140* (scale/ (canvas.width/360)), 0, Math.PI*2);
+    ctx.arc(center.x, center.y, Math.max(canvas.width, canvas.height) * 0.18, 0, Math.PI*2);
     ctx.fill();
 
-    // update particles toward targets (spring motion)
+    // 粒子朝目标点弹簧运动
     for(let i=0;i<particles.length;i++){
       const p = particles[i];
-      // tiny wander on target positions for glitter flicker
-      const wobble = Math.sin((now + p.phase*800)/ (1200 + p.flick)) * 6;
+      const wobble = Math.sin((now + p.phase*800)/ (1200 + p.flick)) * 5;
       const tx = p.tx + wobble * Math.cos(p.phase);
       const ty = p.ty + wobble * Math.sin(p.phase);
 
-      // spring physics
-      const ax = (tx - p.x) * 0.0025 * Math.min(3, dt/16);
-      const ay = (ty - p.y) * 0.0025 * Math.min(3, dt/16);
-      p.vx += ax;
-      p.vy += ay;
-      // damping
-      p.vx *= 0.92;
-      p.vy *= 0.92;
+      const ax = (tx - p.x) * 0.002 * Math.min(3, dt/16);
+      const ay = (ty - p.y) * 0.002 * Math.min(3, dt/16);
+      p.vx += ax; p.vy += ay;
+      p.vx *= 0.92; p.vy *= 0.92;
       p.x += p.vx * (dt/16);
       p.y += p.vy * (dt/16);
 
-      // flicker alpha
-      const alpha = 0.6 + 0.4 * Math.abs(Math.sin((now + i*13) / (600 + (i%7)*30)));
-
-      // draw glow particle
-      const rad = p.size * (1 + 0.5*Math.sin(now/800 + i));
-      ctx.beginPath();
-      const col = `hsla(${p.hue},90%,65%,${alpha*0.9})`;
-      // outer soft
-      ctx.fillStyle = col;
+      const alpha = 0.5 + 0.45 * Math.abs(Math.sin((now + i*11) / (700 + (i%6)*25)));
+      const rad = p.size * (1 + 0.4*Math.sin(now/900 + i));
       ctx.globalCompositeOperation = 'lighter';
-      ctx.fillRect(p.x- rad*1.6, p.y- rad*1.6, rad*3.2, rad*3.2);
-      // small core
+      ctx.fillStyle = `hsla(${p.hue},90%,65%,${alpha})`;
+      ctx.fillRect(p.x - rad*1.4, p.y - rad*1.4, rad*2.8, rad*2.8);
       ctx.beginPath();
-      ctx.fillStyle = `hsla(${p.hue},95%,72%,${Math.min(1,alpha+0.15)})`;
-      ctx.arc(p.x, p.y, rad*0.6, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.globalCompositeOperation = 'source-over';
-
-    // trails update & draw (give jellyfish like flowing tails)
-    for(let i=trails.length-1;i>=0;i--){
-      const tr = trails[i];
-      const age = now - tr.t0;
-      if(age > tr.life){ trails.splice(i,1); continue; }
-      // gravity & tiny wobble
-      tr.vx += (Math.sin((now + i*29)/1800))*0.001;
-      tr.vy += 0.004; // slight gravity downward (but vy is negative at start moves upward)
-      tr.x += tr.vx * (dt/16);
-      tr.y += tr.vy * (dt/16);
-      const tnorm = age / tr.life;
-      const a = 1 - tnorm;
-      // draw trailing glow line segment
-      ctx.beginPath();
-      ctx.globalCompositeOperation = 'lighter';
-      const gradient = ctx.createRadialGradient(tr.x, tr.y, 0, tr.x, tr.y, tr.size*8);
-      const color = `hsla(${tr.hue},95%,68%,${0.9*a})`;
-      gradient.addColorStop(0, color);
-      gradient.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(tr.x - tr.size*4, tr.y - tr.size*4, tr.size*8, tr.size*8);
-
-      // tiny core
-      ctx.beginPath();
-      ctx.fillStyle = `hsla(${tr.hue},90%,70%,${0.95*a})`;
-      ctx.arc(tr.x, tr.y, tr.size*0.9, 0, Math.PI*2);
+      ctx.fillStyle = `hsla(${p.hue},95%,72%,${Math.min(1,alpha+0.12)})`;
+      ctx.arc(p.x, p.y, Math.max(0.4, rad*0.5), 0, Math.PI*2);
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
     }
 
-    // periodic small emissions from bottom of heart
-    if(Math.random() < 0.06) emitTrail();
+    // trails
+    for(let i=trails.length-1;i>=0;i--){
+      const tr = trails[i];
+      const age = now - tr.t0;
+      if(age > tr.life){ trails.splice(i,1); continue; }
+      tr.vx += (Math.sin((now + i*29)/2000))*0.0008;
+      tr.vy += 0.003;
+      tr.x += tr.vx * (dt/16);
+      tr.y += tr.vy * (dt/16);
+      const tnorm = age / tr.life;
+      const a = 1 - tnorm;
+      ctx.globalCompositeOperation = 'lighter';
+      const gradient = ctx.createRadialGradient(tr.x, tr.y, 0, tr.x, tr.y, tr.size*7);
+      gradient.addColorStop(0, `hsla(${tr.hue},92%,68%,${0.9*a})`);
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(tr.x - tr.size*3.5, tr.y - tr.size*3.5, tr.size*7, tr.size*7);
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${tr.hue},88%,70%,${0.95*a})`;
+      ctx.arc(tr.x, tr.y, tr.size*0.8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
 
+    if(Math.random() < 0.06) emitTrail();
     requestAnimationFrame(tick);
   }
 
-  // reposition particles' targets on resize or occasionally to maintain shape
+  // 重新计算目标点（在 resize 或周期性调用）
   function recomputeTargets(){
     for(let i=0;i<particles.length;i++){
       const t = (i / particles.length) * Math.PI * 2 + Math.random()*0.6;
@@ -439,34 +420,20 @@
       particles[i].tx = center.x + p.x * scale + (Math.random()-0.5)*6;
       particles[i].ty = center.y - p.y * scale + (Math.random()-0.5)*6;
     }
-    // slightly shift center over time for breathing
   }
 
-  // emitTrail already defined above
-  // start loop
+  // 在 window resize 时重建目标（保证形状）
+  window.addEventListener('resize', () => {
+    resize();
+    recomputeTargets();
+  });
+
   recomputeTargets();
   last = performance.now();
   requestAnimationFrame(tick);
 
-  // periodic gentle recompute to avoid static layout
-  setInterval(() => {
-    recomputeTargets();
-  }, 2800);
-
-  // handle visibility
-  document.addEventListener('visibilitychange', ()=> {
-    if(document.hidden === false){
-      last = performance.now();
-    }
-  });
-
-  // expose simple controls for density (optional debugging)
-  window.__heartParticles = {
-    setCount(n){
-      // not dynamic in this simple impl; recommend regenerate manually
-      console.warn('要调整粒子数量，请在脚本中修改 PARTICLE_COUNT 并刷新页面。');
-    }
-  };
+  // 可调：降低数量或缩短频率进一步优化性能
+  window.__heartParticles = { setCount(n){ console.warn('请在脚本中修改 PARTICLE_COUNT 并刷新页面。'); } };
 
 })();
   </script>

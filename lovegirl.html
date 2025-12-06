@@ -1,0 +1,370 @@
+// ...existing code...
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>宝宝，永远爱你</title>
+<style>
+  :root{
+    --bg1:#fff5f8;
+    --bg2:#fff0f4;
+    --deep-pink:#ff3a73;
+    --soft-pink:#ffcfe0;
+    --text-dark:#2b2b2b;
+  }
+  html,body{height:100%;margin:0;font-family: "PingFang SC","Microsoft YaHei",Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .stage{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background: linear-gradient(180deg,var(--bg1),var(--bg2));
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* Canvas 容器，使画布在中心并相对自适应 */
+  .canvas-wrap{ width:84vmin; max-width:720px; aspect-ratio:1.05 / 1; position:relative; }
+  canvas{ width:100%; height:100%; display:block; border-radius:14px; }
+
+  /* 底部文字 */
+  .caption{
+    margin-top:18px;
+    padding:8px 18px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color:var(--text-dark);
+    font-weight:600;
+    box-shadow: 0 6px 18px rgba(255,80,140,0.08);
+    letter-spacing:0.6px;
+  }
+
+  /* 兼容小屏 */
+  @media (max-width:420px){
+    .canvas-wrap{ width:92vmin; max-width:420px; }
+    .caption{ font-size:15px; padding:6px 14px; }
+  }
+
+  /* 屏幕阅读辅助隐藏文字 */
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+</style>
+</head>
+<body>
+  <main class="stage" role="main">
+    <div class="canvas-wrap" aria-hidden="false">
+      <canvas id="heartCanvas" aria-label="跳动的爱心粒子"></canvas>
+    </div>
+
+    <div class="caption">宝宝，永远爱你 ❤</div>
+    <span class="sr-only">给宝宝的爱心动画</span>
+  </main>
+
+<script>
+/* Canvas 粒子爱心（移动端友好）：
+ - 中间用大量小粒子组成心形（闪烁）
+ - 心形底部会发射若干拖尾粒子（轻柔上浮）
+ - 适配 DPR、resize；在低性能设备可降低 PARTICLE_COUNT
+*/
+(function(){
+  const canvas = document.getElementById('heartCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  // 性能：移动端推荐 350-700
+  const PARTICLE_COUNT = 480;
+
+  let width = 600, height = 560;
+  let center = { x: 300, y: 260 }, scale = 12;
+
+  function fitSize(){
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(200, rect.width);
+    height = Math.max(200, rect.height);
+    canvas.width = Math.round(width * DPR);
+    canvas.height = Math.round(height * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    center = { x: rect.width/2, y: rect.height/2 - rect.height*0.06 };
+    scale = Math.min(rect.width, rect.height) / 38;
+  }
+  window.addEventListener('resize', ()=>{ fitSize(); regenerateTargets(); });
+  fitSize();
+
+  // 心形参数方程
+  function heartXY(t){
+    // x = 16 sin^3 t; y = 13 cos t - 5 cos 2t - 2 cos3t - cos4t
+    const x = 16 * Math.pow(Math.sin(t),3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+    return { x, y };
+  }
+
+  // 粒子数据
+  const particles = [];
+  const trails = [];
+
+  function initParticles(){
+    particles.length = 0;
+    for(let i=0;i<PARTICLE_COUNT;i++){
+      const t = Math.random() * Math.PI * 2;
+      const p = heartXY(t);
+      const tx = center.x + p.x * scale + (Math.random()-0.5)*8;
+      const ty = center.y - p.y * scale + (Math.random()-0.5)*8;
+      particles.push({
+        x: center.x + (Math.random()-0.5)*200,
+        y: center.y + (Math.random()-0.5)*200,
+        tx, ty, vx:0, vy:0,
+        size: Math.random()*1.6 + 0.6,
+        hue: 330 + Math.random()*18,
+        flick: Math.random()*1000,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+
+  function regenerateTargets(){
+    // update center/scale first (fitSize called)
+    for(let i=0;i<particles.length;i++){
+      const t = (i / particles.length) * Math.PI * 2 + Math.random()*0.6;
+      const p = heartXY(t);
+      particles[i].tx = center.x + p.x * scale + (Math.random()-0.5)*6;
+      particles[i].ty = center.y - p.y * scale + (Math.random()-0.5)*6;
+    }
+  }
+
+  function emitTrail(){
+    const baseX = center.x;
+    const baseY = center.y + 34 * scale;
+    const count = 4 + Math.floor(Math.random()*5);
+    for(let i=0;i<count;i++){
+      trails.push({
+        x: baseX + (Math.random()-0.5)*18,
+        y: baseY + (Math.random()*8),
+        vx: (Math.random()-0.5)*0.5,
+        vy: - (1.2 + Math.random()*1.6),
+        life: 1000 + Math.random()*1400,
+        size: 1.0 + Math.random()*2.6,
+        hue: 320 + Math.random()*30,
+        t0: performance.now()
+      });
+    }
+    if(trails.length > 420) trails.splice(0, trails.length-420);
+  }
+
+  initParticles();
+  regenerateTargets();
+
+  let last = performance.now();
+  function tick(now){
+    const dt = now - last; last = now;
+
+    // 画布清除
+    ctx.clearRect(0,0, canvas.width/DPR, canvas.height/DPR);
+
+    // 大范围柔和光晕
+    const g = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(width, height));
+    g.addColorStop(0, 'rgba(255,110,160,0.22)');
+    g.addColorStop(0.45, 'rgba(255,140,180,0.06)');
+    g.addColorStop(1, 'rgba(255,140,160,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(width,height)*0.18, 0, Math.PI*2);
+    ctx.fill();
+
+    // 粒子向目标弹簧运动（制造心形）
+    for(let i=0;i<particles.length;i++){
+      const p = particles[i];
+      const wobble = Math.sin((now + p.phase*700) / (900 + p.flick)) * 4.6;
+      const tx = p.tx + wobble * Math.cos(p.phase);
+      const ty = p.ty + wobble * Math.sin(p.phase);
+
+      const ax = (tx - p.x) * 0.0022 * Math.min(3, dt/16);
+      const ay = (ty - p.y) * 0.0022 * Math.min(3, dt/16);
+      p.vx += ax; p.vy +=// filepath: c:\Users\xy\java\new (2)\Mylove\lovegirl\index.html
+// ...existing code...
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>宝宝，永远爱你</title>
+<style>
+  :root{
+    --bg1:#fff5f8;
+    --bg2:#fff0f4;
+    --deep-pink:#ff3a73;
+    --soft-pink:#ffcfe0;
+    --text-dark:#2b2b2b;
+  }
+  html,body{height:100%;margin:0;font-family: "PingFang SC","Microsoft YaHei",Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .stage{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background: linear-gradient(180deg,var(--bg1),var(--bg2));
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* Canvas 容器，使画布在中心并相对自适应 */
+  .canvas-wrap{ width:84vmin; max-width:720px; aspect-ratio:1.05 / 1; position:relative; }
+  canvas{ width:100%; height:100%; display:block; border-radius:14px; }
+
+  /* 底部文字 */
+  .caption{
+    margin-top:18px;
+    padding:8px 18px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color:var(--text-dark);
+    font-weight:600;
+    box-shadow: 0 6px 18px rgba(255,80,140,0.08);
+    letter-spacing:0.6px;
+  }
+
+  /* 兼容小屏 */
+  @media (max-width:420px){
+    .canvas-wrap{ width:92vmin; max-width:420px; }
+    .caption{ font-size:15px; padding:6px 14px; }
+  }
+
+  /* 屏幕阅读辅助隐藏文字 */
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+</style>
+</head>
+<body>
+  <main class="stage" role="main">
+    <div class="canvas-wrap" aria-hidden="false">
+      <canvas id="heartCanvas" aria-label="跳动的爱心粒子"></canvas>
+    </div>
+
+    <div class="caption">宝宝，永远爱你 ❤</div>
+    <span class="sr-only">给宝宝的爱心动画</span>
+  </main>
+
+<script>
+/* Canvas 粒子爱心（移动端友好）：
+ - 中间用大量小粒子组成心形（闪烁）
+ - 心形底部会发射若干拖尾粒子（轻柔上浮）
+ - 适配 DPR、resize；在低性能设备可降低 PARTICLE_COUNT
+*/
+(function(){
+  const canvas = document.getElementById('heartCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  // 性能：移动端推荐 350-700
+  const PARTICLE_COUNT = 480;
+
+  let width = 600, height = 560;
+  let center = { x: 300, y: 260 }, scale = 12;
+
+  function fitSize(){
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(200, rect.width);
+    height = Math.max(200, rect.height);
+    canvas.width = Math.round(width * DPR);
+    canvas.height = Math.round(height * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    center = { x: rect.width/2, y: rect.height/2 - rect.height*0.06 };
+    scale = Math.min(rect.width, rect.height) / 38;
+  }
+  window.addEventListener('resize', ()=>{ fitSize(); regenerateTargets(); });
+  fitSize();
+
+  // 心形参数方程
+  function heartXY(t){
+    // x = 16 sin^3 t; y = 13 cos t - 5 cos 2t - 2 cos3t - cos4t
+    const x = 16 * Math.pow(Math.sin(t),3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+    return { x, y };
+  }
+
+  // 粒子数据
+  const particles = [];
+  const trails = [];
+
+  function initParticles(){
+    particles.length = 0;
+    for(let i=0;i<PARTICLE_COUNT;i++){
+      const t = Math.random() * Math.PI * 2;
+      const p = heartXY(t);
+      const tx = center.x + p.x * scale + (Math.random()-0.5)*8;
+      const ty = center.y - p.y * scale + (Math.random()-0.5)*8;
+      particles.push({
+        x: center.x + (Math.random()-0.5)*200,
+        y: center.y + (Math.random()-0.5)*200,
+        tx, ty, vx:0, vy:0,
+        size: Math.random()*1.6 + 0.6,
+        hue: 330 + Math.random()*18,
+        flick: Math.random()*1000,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+
+  function regenerateTargets(){
+    // update center/scale first (fitSize called)
+    for(let i=0;i<particles.length;i++){
+      const t = (i / particles.length) * Math.PI * 2 + Math.random()*0.6;
+      const p = heartXY(t);
+      particles[i].tx = center.x + p.x * scale + (Math.random()-0.5)*6;
+      particles[i].ty = center.y - p.y * scale + (Math.random()-0.5)*6;
+    }
+  }
+
+  function emitTrail(){
+    const baseX = center.x;
+    const baseY = center.y + 34 * scale;
+    const count = 4 + Math.floor(Math.random()*5);
+    for(let i=0;i<count;i++){
+      trails.push({
+        x: baseX + (Math.random()-0.5)*18,
+        y: baseY + (Math.random()*8),
+        vx: (Math.random()-0.5)*0.5,
+        vy: - (1.2 + Math.random()*1.6),
+        life: 1000 + Math.random()*1400,
+        size: 1.0 + Math.random()*2.6,
+        hue: 320 + Math.random()*30,
+        t0: performance.now()
+      });
+    }
+    if(trails.length > 420) trails.splice(0, trails.length-420);
+  }
+
+  initParticles();
+  regenerateTargets();
+
+  let last = performance.now();
+  function tick(now){
+    const dt = now - last; last = now;
+
+    // 画布清除
+    ctx.clearRect(0,0, canvas.width/DPR, canvas.height/DPR);
+
+    // 大范围柔和光晕
+    const g = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(width, height));
+    g.addColorStop(0, 'rgba(255,110,160,0.22)');
+    g.addColorStop(0.45, 'rgba(255,140,180,0.06)');
+    g.addColorStop(1, 'rgba(255,140,160,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(width,height)*0.18, 0, Math.PI*2);
+    ctx.fill();
+
+    // 粒子向目标弹簧运动（制造心形）
+    for(let i=0;i<particles.length;i++){
+      const p = particles[i];
+      const wobble = Math.sin((now + p.phase*700) / (900 + p.flick)) * 4.6;
+      const tx = p.tx + wobble * Math.cos(p.phase);
+      const ty = p.ty + wobble * Math.sin(p.phase);
+
+      const ax = (tx - p.x) * 0.0022 * Math.min(3, dt/16);
+      const ay = (ty - p.y) * 0.0022 * Math.min(3, dt/16);
+      p.vx += ax; p.vy +=

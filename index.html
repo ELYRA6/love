@@ -1,0 +1,208 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>宝宝，永远爱你</title>
+<style>
+  :root{
+    --bg1:#fff5f8;
+    --bg2:#fff0f4;
+    --text-dark:#2b2b2b;
+  }
+  html,body{height:100%;margin:0;font-family: "PingFang SC","Microsoft YaHei",Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .stage{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    background: linear-gradient(180deg,var(--bg1),var(--bg2));
+    overflow:hidden;
+    position:relative;
+  }
+  .canvas-wrap{ width:84vmin; max-width:720px; aspect-ratio:1.05 / 1; position:relative; }
+  canvas{ width:100%; height:100%; display:block; border-radius:14px; }
+  .caption{
+    margin-top:18px;
+    padding:8px 18px;
+    border-radius:999px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color:var(--text-dark);
+    font-weight:600;
+    box-shadow: 0 6px 18px rgba(255,80,140,0.08);
+    letter-spacing:0.6px;
+  }
+  @media (max-width:420px){
+    .canvas-wrap{ width:92vmin; max-width:420px; }
+    .caption{ font-size:15px; padding:6px 14px; }
+  }
+</style>
+</head>
+<body>
+  <main class="stage" role="main">
+    <div class="canvas-wrap">
+      <canvas id="heartCanvas"></canvas>
+    </div>
+    <div class="caption">宝宝，永远爱你 ❤</div>
+  </main>
+<script>
+(function(){
+  const canvas = document.getElementById('heartCanvas');
+  const ctx = canvas.getContext('2d', { alpha: true });
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+  const PARTICLE_COUNT = 480;
+  let width = 600, height = 560;
+  let center = { x: 300, y: 260 }, scale = 12;
+
+  function fitSize(){
+    const rect = canvas.getBoundingClientRect();
+    width = Math.max(200, rect.width);
+    height = Math.max(200, rect.height);
+    canvas.width = Math.round(width * DPR);
+    canvas.height = Math.round(height * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    center = { x: rect.width/2, y: rect.height/2 - rect.height*0.06 };
+    scale = Math.min(rect.width, rect.height) / 38;
+  }
+  window.addEventListener('resize', ()=>{ fitSize(); regenerateTargets(); });
+  fitSize();
+
+  function heartXY(t){
+    const x = 16 * Math.pow(Math.sin(t),3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+    return { x, y };
+  }
+
+  const particles = [];
+  const trails = [];
+
+  function initParticles(){
+    particles.length = 0;
+    for(let i=0;i<PARTICLE_COUNT;i++){
+      const t = Math.random() * Math.PI * 2;
+      const p = heartXY(t);
+      const tx = center.x + p.x * scale + (Math.random()-0.5)*8;
+      const ty = center.y - p.y * scale + (Math.random()-0.5)*8;
+      particles.push({
+        x: center.x + (Math.random()-0.5)*200,
+        y: center.y + (Math.random()-0.5)*200,
+        tx, ty, vx:0, vy:0,
+        size: Math.random()*1.6 + 0.6,
+        hue: 330 + Math.random()*18,
+        flick: Math.random()*1000,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+
+  function regenerateTargets(){
+    for(let i=0;i<particles.length;i++){
+      const t = (i / particles.length) * Math.PI * 2 + Math.random()*0.6;
+      const p = heartXY(t);
+      particles[i].tx = center.x + p.x * scale + (Math.random()-0.5)*6;
+      particles[i].ty = center.y - p.y * scale + (Math.random()-0.5)*6;
+    }
+  }
+
+  function emitTrail(){
+    const baseX = center.x;
+    const baseY = center.y + 34 * scale;
+    const count = 4 + Math.floor(Math.random()*5);
+    for(let i=0;i<count;i++){
+      trails.push({
+        x: baseX + (Math.random()-0.5)*18,
+        y: baseY + (Math.random()*8),
+        vx: (Math.random()-0.5)*0.5,
+        vy: - (1.2 + Math.random()*1.6),
+        life: 1000 + Math.random()*1400,
+        size: 1.0 + Math.random()*2.6,
+        hue: 320 + Math.random()*30,
+        t0: performance.now()
+      });
+    }
+    if(trails.length > 420) trails.splice(0, trails.length-420);
+  }
+
+  initParticles();
+  regenerateTargets();
+
+  let last = performance.now();
+  function tick(now){
+    const dt = now - last; last = now;
+    ctx.clearRect(0,0, canvas.width/DPR, canvas.height/DPR);
+
+    const g = ctx.createRadialGradient(center.x, center.y, 10, center.x, center.y, Math.max(width, height));
+    g.addColorStop(0, 'rgba(255,110,160,0.22)');
+    g.addColorStop(0.45, 'rgba(255,140,180,0.06)');
+    g.addColorStop(1, 'rgba(255,140,160,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, Math.max(width,height)*0.18, 0, Math.PI*2);
+    ctx.fill();
+
+    for(let i=0;i<particles.length;i++){
+      const p = particles[i];
+      const wobble = Math.sin((now + p.phase*700) / (900 + p.flick)) * 4.6;
+      const tx = p.tx + wobble * Math.cos(p.phase);
+      const ty = p.ty + wobble * Math.sin(p.phase);
+      const ax = (tx - p.x) * 0.0022 * Math.min(3, dt/16);
+      const ay = (ty - p.y) * 0.0022 * Math.min(3, dt/16);
+      p.vx += ax; p.vy += ay;
+      p.vx *= 0.91; p.vy *= 0.91;
+      p.x += p.vx * (dt/16);
+      p.y += p.vy * (dt/16);
+
+      const alpha = 0.55 + 0.45 * Math.abs(Math.sin((now + i * 13) / (700 + (i % 8) * 28)));
+      const rad = p.size * (1 + 0.45 * Math.sin(now / 850 + i));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = `hsla(${p.hue}, 92%, 68%, ${alpha * 0.88})`;
+      ctx.fillRect(p.x - rad * 1.5, p.y - rad * 1.5, rad * 3, rad * 3);
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${p.hue}, 95%, 75%, ${Math.min(1, alpha + 0.18)})`;
+      ctx.arc(p.x, p.y, Math.max(0.5, rad * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+
+    for(let i = trails.length - 1; i >= 0; i--) {
+      const tr = trails[i];
+      const age = now - tr.t0;
+      if(age > tr.life) { trails.splice(i, 1); continue; }
+      tr.vx += (Math.sin((now + i * 31) / 1900)) * 0.0009;
+      tr.vy += 0.0035;
+      tr.x += tr.vx * (dt / 16);
+      tr.y += tr.vy * (dt / 16);
+      const tnorm = age / tr.life;
+      const a = 1 - tnorm;
+      ctx.globalCompositeOperation = 'lighter';
+      const gradient = ctx.createRadialGradient(tr.x, tr.y, 0, tr.x, tr.y, tr.size * 8);
+      gradient.addColorStop(0, `hsla(${tr.hue}, 93%, 70%, ${0.92 * a})`);
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(tr.x - tr.size * 4, tr.y - tr.size * 4, tr.size * 8, tr.size * 8);
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${tr.hue}, 91%, 72%, ${0.96 * a})`;
+      ctx.arc(tr.x, tr.y, tr.size * 0.95, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    if(Math.random() < 0.07) emitTrail();
+    requestAnimationFrame(tick);
+  }
+
+  last = performance.now();
+  requestAnimationFrame(tick);
+
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden) last = performance.now();
+  });
+
+})();
+</script>
+</body>
+</html>
